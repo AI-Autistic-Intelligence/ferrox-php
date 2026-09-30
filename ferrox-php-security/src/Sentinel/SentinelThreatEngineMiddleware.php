@@ -27,22 +27,65 @@ class SentinelThreatEngineMiddleware implements MiddlewareInterface
         // 🔒 Ferrox Layer 2: Sentinel Threat Engine
         // Evaluates Shannon Entropy, checks for anomalies, SQLi/XSS/RAG poisoning attempts.
 
-        $entropy = $this->calculateEntropy(json_encode($request->body));
-        
-        // If entropy is suspiciously high, it might be an obfuscated payload or shellcode.
-        if ($entropy > 4.8) {
-            throw AppError::forbidden("Sentinel AI Blocked Request: High payload entropy ({$entropy}) detected.");
+        $payloadString = json_encode($request->body) . " " . json_encode($request->query);
+
+        // 1. Shannon Entropy Analysis (Obfuscated Shellcode detection)
+        $entropy = $this->calculateEntropy($payloadString);
+        if ($entropy > 4.9) {
+            $this->flagThreat("High payload entropy ({$entropy}) detected - Possible obfuscated shellcode");
         }
+
+        // 2. Advanced SQLi & XSS Heuristics
+        $this->scanForCodeInjection($payloadString);
+
+        // 3. AI / RAG Prompt Injection Poisoning (LLM Security)
+        $this->scanForPromptInjection($payloadString);
+
+        // 4. Directory Traversal / LFI
+        $this->scanForPathTraversal($request->uri);
 
         return $handler->handle($request);
     }
 
+    private function flagThreat(string $reason): void
+    {
+        error_log("[SENTINEL WAF] BLOCK: " . $reason);
+        // In a real scenario, ban the IP dynamically at NGINX/iptables level here.
+        throw AppError::forbidden("Ferrox Sentinel WAF Blocked Request: Security violation detected.");
+    }
+
+    private function scanForCodeInjection(string $payload): void
+    {
+        $sqliPattern = '/(\b(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\b.*?\b(FROM|INTO|TABLE)\b)|(\'|%27).*?(--|#|\/\*)/i';
+        $xssPattern = '/(<(?:script|iframe|img|svg|object|embed).*?(?:src|onload|onerror)=)|(javascript:|vbscript:|data:text\/html)/i';
+
+        if (preg_match($sqliPattern, $payload)) {
+            $this->flagThreat("SQL Injection Heuristic matched.");
+        }
+        if (preg_match($xssPattern, $payload)) {
+            $this->flagThreat("XSS / Cross-Site Scripting Heuristic matched.");
+        }
+    }
+
+    private function scanForPromptInjection(string $payload): void
+    {
+        $ragPoisoningPattern = '/(ignore previous instructions|disregard|system prompt|you are now|forget everything|bypass|jailbreak)/i';
+        
+        if (preg_match($ragPoisoningPattern, $payload)) {
+            $this->flagThreat("AI/LLM Prompt Injection (RAG Poisoning) attempt detected.");
+        }
+    }
+
+    private function scanForPathTraversal(string $uri): void
+    {
+        if (str_contains($uri, '../') || str_contains($uri, '..\\') || str_contains($uri, '/etc/passwd')) {
+            $this->flagThreat("Path Traversal / Local File Inclusion attempt detected in URI.");
+        }
+    }
+
     /**
      * Calculates the Shannon Entropy of a given string.
-     * Higher values (> 4.8) generally indicate compressed, encrypted, or highly obfuscated data.
-     *
-     * @param string $data The raw payload string to analyze.
-     * @return float The calculated entropy score.
+     * Higher values (> 4.9) generally indicate compressed, encrypted, or highly obfuscated data.
      */
     private function calculateEntropy(string $data): float
     {
