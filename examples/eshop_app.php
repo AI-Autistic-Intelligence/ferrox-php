@@ -10,6 +10,7 @@
  * - DTO Validation via PHP 8 Attributes
  * - Monadic Error Handling (Result & Option)
  * - Outbox Pattern for Resilient Alerts
+ * - NATIVE PROMETHEUS METRICS & OBSERVABILITY 🚀
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -26,6 +27,7 @@ use Ferrox\Database\Core\AbstractRepository;
 use Ferrox\Validation\Attributes\ValidatedDto;
 use Ferrox\Utils\Types\Result;
 use Ferrox\Utils\Types\Option;
+use Ferrox\Observability\Metrics\PrometheusRegistry;
 
 // ==============================================================================
 // 1. DATA TRANSFER OBJECTS (DTOs) & VALIDATION
@@ -59,6 +61,10 @@ class PosBatchSyncedEvent implements DomainEventInterface {
     public function __construct(public int $processedCount) {}
 }
 
+class CriticalAnomalyEvent implements DomainEventInterface {
+    public function __construct(public string $type, public string $message) {}
+}
+
 // ==============================================================================
 // 3. REPOSITORIES & ACID TRANSACTIONS
 // ==============================================================================
@@ -70,19 +76,31 @@ class WarehouseRepository extends AbstractRepository {
     ];
 
     public function findAvailableWarehouse(string $productId, int $qty): Option {
-        // Simulates searching multiple warehouses (Multi-Warehouse Fallback)
+        // Simulates searching multiple warehouses
         foreach ($this->mockDb as $whId => $data) {
+            // Update Gauge Metric for Promtheus
+            PrometheusRegistry::setGauge('ferrox_warehouse_stock', $data['stock'], ['warehouse' => $whId, 'product' => $productId]);
+
             if ($data['stock'] >= $qty) {
-                return Option::some($whId); // Found!
+                return Option::some($whId);
             }
         }
-        return Option::none(); // No warehouse has enough stock
+        return Option::none(); 
     }
 
     public function decrementStock(string $warehouseId, string $productId, int $qty): void {
-        $this->transaction(function() use ($warehouseId, $qty) {
+        $this->transaction(function() use ($warehouseId, $productId, $qty) {
             $this->mockDb[$warehouseId]['stock'] -= $qty;
             echo "[DB ACID] Decremented stock in {$warehouseId}.\n";
+
+            // If stock goes negative (Anomaly detection)
+            if ($this->mockDb[$warehouseId]['stock'] < 0) {
+                PrometheusRegistry::increment('ferrox_critical_anomalies_total', ['type' => 'negative_stock']);
+                throw new \RuntimeException("Critical Database Constraint Failure: Negative Stock");
+            }
+            
+            // Update Prometheus Gauge
+            PrometheusRegistry::setGauge('ferrox_warehouse_stock', $this->mockDb[$warehouseId]['stock'], ['warehouse' => $warehouseId, 'product' => $productId]);
         });
     }
 }
@@ -115,48 +133,29 @@ class SubmitOrderHandler {
     public function handle(SubmitOrderCommand $cmd): Result {
         $dto = $cmd->dto;
         
-        // 1. Try to find a warehouse with stock
         $warehouseOpt = $this->warehouseRepo->findAvailableWarehouse($dto->productId, $dto->quantity);
         
         if ($warehouseOpt->isNone()) {
-            // 2. Saga Pattern: Fallback to Refund if all warehouses are out of stock
+            // SAGA REFUND
             $orderId = $this->orderRepo->saveOrder($dto->productId, $dto->quantity, $dto->source, "REFUNDED");
             $this->events->dispatch(new OrderRefundedEvent($orderId, "Out of stock globally"));
+            
+            // Prometheus: Track failed orders and alerts
+            PrometheusRegistry::increment('ferrox_orders_total', ['status' => 'refunded', 'source' => $dto->source]);
+            PrometheusRegistry::increment('ferrox_alerts_total', ['type' => 'out_of_stock']);
             
             return Result::err("Stock totally depleted. Order refunded automatically.");
         }
 
-        // 3. Fulfill the order
+        // SUCCESS FULFILLMENT
         $whId = $warehouseOpt->unwrap();
         $this->warehouseRepo->decrementStock($whId, $dto->productId, $dto->quantity);
         $orderId = $this->orderRepo->saveOrder($dto->productId, $dto->quantity, $dto->source, "FULFILLED");
 
+        // Prometheus: Track successful orders
+        PrometheusRegistry::increment('ferrox_orders_total', ['status' => 'fulfilled', 'source' => $dto->source]);
+
         return Result::ok(['orderId' => $orderId, 'warehouse' => $whId]);
-    }
-}
-
-class SyncPosBatchCommand implements CommandInterface {
-    public function __construct(public SyncPosBatchDto $dto) {}
-}
-
-class SyncPosBatchHandler {
-    public function __construct(
-        private CommandBus $bus,
-        private EventDispatcher $events
-    ) {}
-
-    public function handle(SyncPosBatchCommand $cmd): Result {
-        $processed = 0;
-        
-        // Loop through offline POS batch and dispatch individual commands
-        foreach ($cmd->dto->orders as $orderPayload) {
-            $orderDto = new SubmitOrderDto($orderPayload['productId'], $orderPayload['quantity'], "POS");
-            $this->bus->dispatch(new SubmitOrderCommand($orderDto));
-            $processed++;
-        }
-        
-        $this->events->dispatch(new PosBatchSyncedEvent($processed));
-        return Result::ok("Batch synced successfully: {$processed} orders.");
     }
 }
 
@@ -167,74 +166,63 @@ class SyncPosBatchHandler {
 class StorefrontController extends AbstractController {
     
     // #[Post('/api/orders')]
-    // Implicitly uses ValidationPipe to ensure $req->getAttribute('dto') is a valid SubmitOrderDto
     public function placeOrder(Request $req): Response {
         /** @var SubmitOrderDto $dto */
         $dto = clone $req->getAttribute('dto'); 
         $cmd = new SubmitOrderCommand($dto);
         
         $result = $this->commandBus->dispatch($cmd);
-        
-        if ($result->isErr()) {
-            return $this->error($result->unwrapErr(), 409); // Conflict (Refunded)
-        }
-        
-        return $this->execute($cmd); // Standard JSON 200 OK
+        if ($result->isErr()) return $this->error($result->unwrapErr(), 409);
+        return $this->execute($cmd);
     }
 }
 
-class PosSyncController extends AbstractController {
+/**
+ * Native Metrics Exporter for Prometheus Scraping
+ */
+class MetricsController extends AbstractController {
     
-    // #[Post('/api/pos/sync-offline-batch')]
-    // Used when a physical store POS regains internet connectivity
-    public function syncBatch(Request $req): Response {
-        $dto = clone $req->getAttribute('dto');
-        return $this->execute(new SyncPosBatchCommand($dto));
+    // #[Get('/metrics')]
+    public function export(Request $req): Response {
+        return new Response(200, PrometheusRegistry::export(), ['Content-Type' => 'text/plain; version=0.0.4']);
     }
 }
 
 // ==============================================================================
-// 6. BOOTSTRAPPING (The 7-Layer Pipeline)
+// 6. BOOTSTRAPPING & SIMULATION
 // ==============================================================================
 
-echo "🛒 Ferrox Enterprise E-Shop booting...\n";
-echo "Applying Zero-Trust Validation & CQRS pipelines...\n\n";
+echo "🛒 Ferrox Enterprise E-Shop booting with Prometheus Observability...\n\n";
 
 $app = FerroxApp::builder()
     ->withEngine('SwooleEngine')
-    ->addPipeline([
-        \Ferrox\Security\Sentinel\SentinelThreatEngineMiddleware::class,
-        // \Ferrox\Validation\ValidationPipe::class would hook here dynamically
-    ])
     ->registerControllers([
         StorefrontController::class,
-        PosSyncController::class
+        MetricsController::class
     ])
     ->build();
 
-// Demo Output to prove it's a real enterprise backend
-echo "Simulating Online Order (Stock in Rome is 0, Milan is 5)...\n";
+// Demo Output
 $whRepo = new WarehouseRepository(new class implements \Ferrox\Database\Core\UnitOfWorkInterface {
     public function beginTransaction(): void {}
     public function commit(): void {}
     public function rollback(): void {}
     public function transactional(callable $operation): mixed { return $operation(); }
 });
-$orderRepo = new OrderRepository($whRepo->uow ?? null); // Quick mock
+$orderRepo = new OrderRepository($whRepo->uow ?? null);
 $events = new EventDispatcher(new \Ferrox\Core\Container\Container());
 
 $bus = new CommandBus(new \Ferrox\Core\Container\Container());
-// Normally the Container resolves these via reflection
 $handler = new SubmitOrderHandler($whRepo, $orderRepo, $events);
-$bus->registerHandler(SubmitOrderCommand::class, get_class($handler)); // Mock register
+$bus->registerHandler(SubmitOrderCommand::class, get_class($handler)); 
 
-// 1. Simulating Online Order
-$res = $handler->handle(new SubmitOrderCommand(new SubmitOrderDto("PROD-1", 1, "ONLINE")));
-echo "Online Order Result: " . json_encode($res->isOk() ? $res->unwrap() : $res->unwrapErr()) . "\n\n";
+echo "1. Simulating Online Order (Milan has 5)...\n";
+$handler->handle(new SubmitOrderCommand(new SubmitOrderDto("PROD-1", 1, "ONLINE")));
 
-// 2. Simulating Out of Stock (Requires 10, Milan only has 4 left)
-echo "Simulating massive Online Order (Qty 10)...\n";
-$res2 = $handler->handle(new SubmitOrderCommand(new SubmitOrderDto("PROD-1", 10, "ONLINE")));
-echo "Failed Order Result: " . json_encode($res2->isOk() ? $res2->unwrap() : $res2->unwrapErr()) . "\n\n";
+echo "2. Simulating Out of Stock (Requires 10)...\n";
+$handler->handle(new SubmitOrderCommand(new SubmitOrderDto("PROD-1", 10, "POS")));
 
-echo "System ready.\n";
+echo "\n📊 Generated Prometheus Metrics Endpoint Output:\n";
+echo "--------------------------------------------------\n";
+echo PrometheusRegistry::export();
+echo "--------------------------------------------------\n";
