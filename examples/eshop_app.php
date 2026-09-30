@@ -192,7 +192,7 @@ class MetricsController extends AbstractController {
 // 6. BOOTSTRAPPING & SIMULATION
 // ==============================================================================
 
-echo "🛒 Ferrox Enterprise E-Shop booting with Prometheus Observability...\n\n";
+echo "🛒 Ferrox Enterprise E-Shop booting with Prometheus Observability & Mailer Alerts...\n\n";
 
 $app = FerroxApp::builder()
     ->withEngine('SwooleEngine')
@@ -202,6 +202,20 @@ $app = FerroxApp::builder()
     ])
     ->build();
 
+// Dependency Injection Mockup
+$container = new \Ferrox\Core\Container\Container();
+$mailer = \Ferrox\Mailer\MailerFactory::create();
+$events = new EventDispatcher($container);
+
+// Wire Up Event Listeners (The Alert Dashboard & Notification System)
+$events->addListener(OrderRefundedEvent::class, function(OrderRefundedEvent $event) use ($mailer) {
+    echo "[EVENT LISTENER] Sending Refund Email to Customer for Order {$event->orderId}...\n";
+    $mailer->send("customer@example.com", "Order Refunded", "<p>We're sorry, your order was refunded because: {$event->reason}</p>");
+    
+    echo "[EVENT LISTENER] Alerting Admins...\n";
+    $mailer->send("admins@ferrox.dev", "ALERT: Stock Depletion", "<p>Global stock depletion triggered refund for {$event->orderId}.</p>");
+});
+
 // Demo Output
 $whRepo = new WarehouseRepository(new class implements \Ferrox\Database\Core\UnitOfWorkInterface {
     public function beginTransaction(): void {}
@@ -210,9 +224,8 @@ $whRepo = new WarehouseRepository(new class implements \Ferrox\Database\Core\Uni
     public function transactional(callable $operation): mixed { return $operation(); }
 });
 $orderRepo = new OrderRepository($whRepo->uow ?? null);
-$events = new EventDispatcher(new \Ferrox\Core\Container\Container());
 
-$bus = new CommandBus(new \Ferrox\Core\Container\Container());
+$bus = new CommandBus($container);
 $handler = new SubmitOrderHandler($whRepo, $orderRepo, $events);
 $bus->registerHandler(SubmitOrderCommand::class, get_class($handler)); 
 
