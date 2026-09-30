@@ -19,4 +19,6 @@ Below is the highly detailed documentation extracted and inferred directly from 
 #### Class / Interface: `ValidatedDto`
 The `ValidatedDto` is responsible for enterprise-grade execution of operations within `ferrox-php-validation/src/Attributes/ValidatedDto.php`.
 
-- *No explicitly defined methods found (or relies on inheritance/magic methods).*
+- **`__construct(public bool $strict = true) : mixed`**
+  - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
+

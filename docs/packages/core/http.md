@@ -14,6 +14,20 @@ By isolating `Http` into its own distinct submodule, Ferrox enforces the Single 
 ## 3. API & Function Reference
 Below is the highly detailed documentation extracted and inferred directly from the codebase for every path, class, and single function within the `Http` submodule:
 
+### Path: `ferrox-php-core/src/Http/AbstractController.php`
+
+#### Class / Interface: `AbstractController`
+The `AbstractController` is responsible for enterprise-grade execution of operations within `ferrox-php-core/src/Http/AbstractController.php`.
+
+- **`__construct(protected CommandBus $commandBus) : mixed`**
+  - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
+
+- **`execute(CommandInterface $command) : Response`**
+  - Executes a CQRS command and returns a standardized JSON Response.
+
+- **`error(string $message, int $statusCode = 400) : Response`**
+  - Standardized error response.
+
 ### Path: `ferrox-php-core/src/Http/MiddlewareInterface.php`
 
 #### Class / Interface: `MiddlewareInterface`

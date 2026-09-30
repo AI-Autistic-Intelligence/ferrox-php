@@ -14,6 +14,20 @@ By isolating `Core` into its own distinct submodule, Ferrox enforces the Single 
 ## 3. API & Function Reference
 Below is the highly detailed documentation extracted and inferred directly from the codebase for every path, class, and single function within the `Core` submodule:
 
+### Path: `ferrox-php-database-core/src/AbstractRepository.php`
+
+#### Class / Interface: `AbstractRepository`
+The `AbstractRepository` is responsible for enterprise-grade execution of operations within `ferrox-php-database-core/src/AbstractRepository.php`.
+
+- **`__construct(protected UnitOfWorkInterface $uow) : mixed`**
+  - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
+
+- **`transaction(callable $operation) : mixed`**
+  - Finds an entity by its primary key. Integrates with Singleflight to prevent cache stampedes on hot records. / abstract public function findById(string $id): ?array; /** Standardized safe execution wrapped in a transaction.
+
+- **`paginateQuery(string $sql, \Ferrox\Utils\Pagination\PageRequest $request) : \Ferrox\Utils\Pagination\PageResult`**
+  - Executes a paginated query, returning a standardized PageResult.
+
 ### Path: `ferrox-php-database-core/src/RepositoryInterface.php`
 
 #### Class / Interface: `RepositoryInterface`

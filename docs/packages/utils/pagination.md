@@ -19,14 +19,23 @@ Below is the highly detailed documentation extracted and inferred directly from 
 #### Class / Interface: `PageRequest`
 The `PageRequest` is responsible for enterprise-grade execution of operations within `ferrox-php-utils/src/Pagination/PageRequest.php`.
 
-- **`__construct(public readonly int $limit = 20, public readonly int $offset = 0, public readonly ?string $sortBy = null, public readonly string $sortDirection = 'ASC') : mixed`**
+- **`__construct(public int $page = 1, public int $limit = 20, public ?string $sortBy = null, public string $sortOrder = 'ASC') : mixed`**
   - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
+
+- **`getOffset() : int`**
+  - Executes the `getOffset` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
 
 ### Path: `ferrox-php-utils/src/Pagination/PageResult.php`
 
 #### Class / Interface: `PageResult`
 The `PageResult` is responsible for enterprise-grade execution of operations within `ferrox-php-utils/src/Pagination/PageResult.php`.
 
-- **`__construct(public readonly array $data, public readonly int $totalItems, public readonly int $totalPages, public readonly int $currentPage) : mixed`**
+- **`__construct(public array $items, public int $total, public int $page, public int $limit) : mixed`**
   - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
+
+- **`hasNextPage() : bool`**
+  - Executes the `hasNextPage` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
+
+- **`hasPreviousPage() : bool`**
+  - Executes the `hasPreviousPage` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
 
