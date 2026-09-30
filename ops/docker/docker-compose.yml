@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  ferrox-app:
+    build: 
+      context: ../../
+      dockerfile: ops/docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=production
+      - DB_DSN=mysql:host=ferrox-db;dbname=ferrox;charset=utf8mb4
+      - DB_USER=ferrox_user
+      - DB_PASS=ferrox_secure_pass
+      - REDIS_URL=tcp://ferrox-redis:6379
+    depends_on:
+      - ferrox-db
+      - ferrox-redis
+    restart: unless-stopped
+
+  ferrox-db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_DATABASE=ferrox
+      - MYSQL_USER=ferrox_user
+      - MYSQL_PASSWORD=ferrox_secure_pass
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+
+  ferrox-redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:

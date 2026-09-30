@@ -1,0 +1,14 @@
+{
+    "name": "ferrox/ferrox-php-crud-gen",
+    "description": "Metaprogramming and Attribute-based CRUD generation for Ferrox PHP",
+    "type": "library",
+    "require": {
+        "php": ">=8.3",
+        "ferrox/ferrox-php-core": "*@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ferrox\\CrudGen\\": "src/"
+        }
+    }
+}

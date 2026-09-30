@@ -1,0 +1,14 @@
+{
+    "name": "ferrox/ferrox-php-data",
+    "description": "Singleflight and Persistence for Ferrox PHP",
+    "type": "library",
+    "require": {
+        "php": ">=8.3",
+        "ferrox/ferrox-php-core": "*@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ferrox\\Data\\": "src/"
+        }
+    }
+}

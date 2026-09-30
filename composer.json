@@ -1,0 +1,34 @@
+{
+    "name": "ferrox/ferrox-php",
+    "description": "Ferrox Framework for PHP - Enterprise grade",
+    "type": "project",
+    "require": {
+        "php": ">=8.3",
+        "ferrox/ferrox-php-core": "*@dev",
+        "ferrox/ferrox-php-validation": "*@dev",
+        "ferrox/ferrox-php-security": "*@dev",
+        "ferrox/ferrox-php-cqrs": "*@dev",
+        "ferrox/ferrox-php-data": "*@dev",
+        "ferrox/ferrox-php-utils": "*@dev",
+        "ferrox/ferrox-php-crud-gen": "*@dev",
+        "ferrox/ferrox-php-events": "*@dev",
+        "ferrox/ferrox-php-config": "*@dev",
+        "ferrox/ferrox-php-database-core": "*@dev",
+        "ferrox/ferrox-php-rate-limiter": "*@dev"
+    },
+    "repositories": [
+        { "type": "path", "url": "ferrox-php-core" },
+        { "type": "path", "url": "ferrox-php-validation" },
+        { "type": "path", "url": "ferrox-php-security" },
+        { "type": "path", "url": "ferrox-php-cqrs" },
+        { "type": "path", "url": "ferrox-php-data" },
+        { "type": "path", "url": "ferrox-php-utils" },
+        { "type": "path", "url": "ferrox-php-crud-gen" },
+        { "type": "path", "url": "ferrox-php-events" },
+        { "type": "path", "url": "ferrox-php-config" },
+        { "type": "path", "url": "ferrox-php-database-core" },
+        { "type": "path", "url": "ferrox-php-rate-limiter" }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,14 @@
+{
+    "name": "ferrox/ferrox-php-core",
+    "description": "Core DI and Bootstrap for Ferrox PHP",
+    "type": "library",
+    "require": {
+        "php": ">=8.3",
+        "psr/container": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ferrox\\Core\\": "src/"
+        }
+    }
+}
