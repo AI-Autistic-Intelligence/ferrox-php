@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-app
+  namespace: default
+  labels:
+    app: ferrox-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ferrox-app
+  template:
+    metadata:
+      labels:
+        app: ferrox-app
+    spec:
+      containers:
+      - name: ferrox-container
+        image: registry.gitlab.com/your-org/ferrox-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9501
+        env:
+        # Ferrox environment mapping
+        - name: FERROX_ENV
+          value: "production"
+        - name: DB_MASTER_DSN
+          valueFrom:
+            secretKeyRef:
+              name: aurora-credentials
+              key: master_dsn
+        - name: DB_REPLICAS_DSN
+          valueFrom:
+            secretKeyRef:
+              name: aurora-credentials
+              key: replicas_dsn
+        # Health Checks natively supported by Ferrox Core
+        livenessProbe:
+          httpGet:
+            path: /health/liveness
+            port: 9501
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 9501
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi" # Ferrox is extremely lightweight
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-service
+spec:
+  type: ClusterIP
+  selector:
+    app: ferrox-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9501
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ferrox-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ferrox-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

@@ -1,0 +1,32 @@
+# Base Image with PHP 8.2 and Swoole Coroutine support
+FROM phpswoole/swoole:8.2-alpine AS builder
+
+WORKDIR /var/www/ferrox
+
+# Install composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install production dependencies
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+# Copy Application source code
+COPY . .
+
+# Final Production Image
+FROM phpswoole/swoole:8.2-alpine
+
+# Security: Run as non-root user
+RUN addgroup -S ferroxgroup && adduser -S ferroxuser -G ferroxgroup
+USER ferroxuser
+
+WORKDIR /var/www/ferrox
+
+# Copy optimized vendor and source from builder
+COPY --from=builder --chown=ferroxuser:ferroxgroup /var/www/ferrox /var/www/ferrox
+
+# Expose standard Ferrox Application port
+EXPOSE 9501
+
+# Start the Swoole Engine natively
+CMD ["php", "examples/eshop_app.php"]
