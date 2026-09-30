@@ -34,10 +34,30 @@ class PasetoAuthGuard implements MiddlewareInterface
         }
         
         if (!str_starts_with($authHeader, 'Bearer v4.local.')) {
-            throw AppError::unauthorized("Invalid token format. Ferrox strictly requires PASETO v4.");
+            throw AppError::unauthorized("Invalid token format. Ferrox strictly requires PASETO v4.local.");
         }
 
-        // Token decryption logic would go here
+        $token = substr($authHeader, 7); // Remove 'Bearer '
+
+        try {
+            // Assumes paragonie/paseto is installed and key is provided via env
+            $keyHex = \Ferrox\Utils\Env\EnvHelper::getOrThrow('PASETO_V4_LOCAL_KEY');
+            $symmetricKey = \ParagonIE\Paseto\Keys\SymmetricKey::fromHex($keyHex);
+            
+            $parser = (new \ParagonIE\Paseto\Parser())
+                ->setKey($symmetricKey)
+                ->addRule(new \ParagonIE\Paseto\Rules\NotExpired())
+                ->addRule(new \ParagonIE\Paseto\Rules\ValidAt());
+            
+            $parsedToken = $parser->parse($token);
+            
+            // Bind the authenticated user context to the request for subsequent layers
+            $request->setAttribute('user_id', $parsedToken->getClaims()['sub'] ?? null);
+            $request->setAttribute('user_roles', $parsedToken->getClaims()['roles'] ?? []);
+            
+        } catch (\ParagonIE\Paseto\Exception\PasetoException $e) {
+            throw AppError::unauthorized("PASETO token validation failed: " . $e->getMessage());
+        }
         
         return $handler->handle($request);
     }
