@@ -1,5 +1,6 @@
 {
     "name": "ferrox/ferrox-php",
+    "version": "1.0.0",
     "description": "Ferrox Framework for PHP - Enterprise grade",
     "type": "project",
     "require": {
