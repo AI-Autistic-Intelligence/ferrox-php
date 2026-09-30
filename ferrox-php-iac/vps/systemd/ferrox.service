@@ -1,0 +1,35 @@
+[Unit]
+Description=Ferrox Enterprise PHP Swoole Server
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+# Ensure we run as a dedicated, non-root user for security (Zero-Trust)
+User=ferroxuser
+Group=ferroxgroup
+
+# Set the working directory to the application root
+WorkingDirectory=/var/www/ferrox
+
+# Run the Swoole entrypoint
+ExecStart=/usr/bin/php examples/eshop_app.php
+
+# Auto-restart on failure (Resilience)
+Restart=always
+RestartSec=3
+
+# Security hardening: Prevent the service from gaining new privileges
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=65535
+
+# Environment variables
+Environment="FERROX_ENV=production"
+# (Add Database/Secrets DSNs here or in an EnvironmentFile)
+# EnvironmentFile=/etc/ferrox/.env
+
+[Install]
+WantedBy=multi-user.target
