@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+/**
+ * 🛠️ Ferrox PHP CLI
+ * The official command-line interface for the Ferrox Enterprise Framework.
+ */
+
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require __DIR__ . '/../vendor/autoload.php';
+} elseif (file_exists(__DIR__ . '/../../../autoload.php')) {
+    // When installed globally via composer
+    require __DIR__ . '/../../../autoload.php';
+} else {
+    echo "Vendor autoload is not found. Please run 'composer install'.\n";
+    exit(1);
+}
+
+use Ferrox\Cli\CliApplication;
+
+$app = new CliApplication();
+$app->run($argv);
