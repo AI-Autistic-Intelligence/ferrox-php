@@ -20,5 +20,5 @@ Below is the highly detailed documentation extracted and inferred directly from 
 The `Singleflight` is responsible for enterprise-grade execution of operations within `ferrox-php-data/src/Concurrency/Singleflight.php`.
 
 - **`work(string $key, Closure $callback) : mixed`**
-  - @var array<string, mixed> Active requests currently in flight. / private array $flights = []; /** Executes the given closure. If multiple concurrent requests call this method with the same key, only the first one will execute the closure. The others will wait (in a real async environment like Swoole/Coroutine) and receive the same result, dramatically reducing database or API load.
+  - @var array&lt;string, mixed&gt; Active requests currently in flight. / private array $flights = []; /** Executes the given closure. If multiple concurrent requests call this method with the same key, only the first one will execute the closure. The others will wait (in a real async environment like Swoole/Coroutine) and receive the same result, dramatically reducing database or API load.
 

@@ -23,5 +23,5 @@ The `SentinelThreatEngineMiddleware` is responsible for enterprise-grade executi
   - Processes the request through the heuristic engine before it reaches validation.
 
 - **`calculateEntropy(string $data) : float`**
-  - Calculates the Shannon Entropy of a given string. Higher values (> 4.8) generally indicate compressed, encrypted, or highly obfuscated data.
+  - Calculates the Shannon Entropy of a given string. Higher values (&gt; 4.8) generally indicate compressed, encrypted, or highly obfuscated data.
 

@@ -235,10 +235,12 @@ Below is the highly detailed documentation extracted and inferred directly from 
                     else:
                         for method in cls['methods']:
                             params = method['params'] if method['params'] else ""
-                            params_clean = " ".join(params.split())
+                            params_clean = " ".join(params.split()).replace('<', '&lt;').replace('>', '&gt;')
+                            return_type_safe = method['return_type'].replace('<', '&lt;').replace('>', '&gt;')
+                            doc_safe = method['doc'].replace('<', '&lt;').replace('>', '&gt;')
                             
-                            md_content += f"- **`{method['name']}({params_clean}) : {method['return_type']}`**\n"
-                            md_content += f"  - {method['doc']}\n\n"
+                            md_content += f"- **`{method['name']}({params_clean}) : {return_type_safe}`**\n"
+                            md_content += f"  - {doc_safe}\n\n"
             
             with open(os.path.join(module_docs_dir, f"{submodule.lower()}.md"), "w", encoding="utf-8") as f:
                 f.write(md_content)
