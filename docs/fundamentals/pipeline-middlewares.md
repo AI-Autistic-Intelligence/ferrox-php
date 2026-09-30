@@ -1,12 +1,12 @@
 ---
-id: result-monad
-title: The Result Monad
+id: pipeline-middlewares
+title: HTTP Pipeline & Middlewares
 ---
 
-# The Result Monad
+# HTTP Pipeline & Middlewares
 
 ## 1. Philosophy / Purpose
-Railway Oriented Programming in PHP... The purpose of this component is to ensure enterprise-grade stability and zero-trust security in Ferrox PHP. It strictly rejects the legacy paradigms of standard PHP (like global state and silent failures) in favor of deterministic, compile-time-like safety.
+OWASP WSTG-INPV-005 compliant pipeline... The purpose of this component is to ensure enterprise-grade stability and zero-trust security in Ferrox PHP. It strictly rejects the legacy paradigms of standard PHP (like global state and silent failures) in favor of deterministic, compile-time-like safety.
 
 ## 2. Architectural Layering
 This component sits precisely where it belongs in the strict Onion Architecture. It interfaces deeply with the underlying runtime (Swoole/RoadRunner) to guarantee zero memory bleeding between requests.

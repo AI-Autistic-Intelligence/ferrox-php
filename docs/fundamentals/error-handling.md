@@ -1,12 +1,12 @@
 ---
-id: result-monad
-title: The Result Monad
+id: error-handling
+title: Error Handling & Panics
 ---
 
-# The Result Monad
+# Error Handling & Panics
 
 ## 1. Philosophy / Purpose
-Railway Oriented Programming in PHP... The purpose of this component is to ensure enterprise-grade stability and zero-trust security in Ferrox PHP. It strictly rejects the legacy paradigms of standard PHP (like global state and silent failures) in favor of deterministic, compile-time-like safety.
+How we catch all panics to prevent memory leaks... The purpose of this component is to ensure enterprise-grade stability and zero-trust security in Ferrox PHP. It strictly rejects the legacy paradigms of standard PHP (like global state and silent failures) in favor of deterministic, compile-time-like safety.
 
 ## 2. Architectural Layering
 This component sits precisely where it belongs in the strict Onion Architecture. It interfaces deeply with the underlying runtime (Swoole/RoadRunner) to guarantee zero memory bleeding between requests.
