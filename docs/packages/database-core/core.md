@@ -19,11 +19,11 @@ Below is the highly detailed documentation extracted and inferred directly from 
 #### Class / Interface: `AbstractRepository`
 The `AbstractRepository` is responsible for enterprise-grade execution of operations within `ferrox-php-database-core/src/AbstractRepository.php`.
 
-- **`__construct(protected UnitOfWorkInterface $uow) : mixed`**
+- **`__construct(protected UnitOfWorkInterface $uow, protected ?\Ferrox\Database\Core\Connection\ReplicaAwareManager $replicaManager = null) : mixed`**
   - Initializes a new instance of the class, enforcing strict constructor Dependency Injection (IoC) to guarantee internal memory-safety and immutability.
 
 - **`transaction(callable $operation) : mixed`**
-  - Finds an entity by its primary key. Integrates with Singleflight to prevent cache stampedes on hot records. / abstract public function findById(string $id): ?array; /** Standardized safe execution wrapped in a transaction.
+  - Finds an entity by its primary key. Routes to a Replica by default, unless a write has forced Master. / abstract public function findById(string $id): ?array; /** Standardized safe execution wrapped in a transaction. Automatically forces the Master connection to avoid replication lag during read-after-write.
 
 - **`paginateQuery(string $sql, \Ferrox\Utils\Pagination\PageRequest $request) : \Ferrox\Utils\Pagination\PageResult`**
   - Executes a paginated query, returning a standardized PageResult.

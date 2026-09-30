@@ -22,6 +22,18 @@ The `SentinelThreatEngineMiddleware` is responsible for enterprise-grade executi
 - **`process(Request $request, RequestHandlerInterface $handler) : Response`**
   - Processes the request through the heuristic engine before it reaches validation.
 
+- **`flagThreat(string $reason) : void`**
+  - Executes the `flagThreat` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
+
+- **`scanForCodeInjection(string $payload) : void`**
+  - Executes the `scanForCodeInjection` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
+
+- **`scanForPromptInjection(string $payload) : void`**
+  - Executes the `scanForPromptInjection` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
+
+- **`scanForPathTraversal(string $uri) : void`**
+  - Executes the `scanForPathTraversal` domain logic securely. Enforces strict type constraints, adhering to Ferrox's Zero-Trust and memory-safe paradigms.
+
 - **`calculateEntropy(string $data) : float`**
-  - Calculates the Shannon Entropy of a given string. Higher values (&gt; 4.8) generally indicate compressed, encrypted, or highly obfuscated data.
+  - Calculates the Shannon Entropy of a given string. Higher values (&gt; 4.9) generally indicate compressed, encrypted, or highly obfuscated data.
 

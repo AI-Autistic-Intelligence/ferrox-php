@@ -177,9 +177,9 @@ The concepts described in this architectural overview integrate closely with eve
         # We find submodules by looking at directories inside src/
         submodules = [d for d in os.listdir(src_dir) if os.path.isdir(os.path.join(src_dir, d))]
         
-        # If there are no subdirectories, we just put everything in a 'core' submodule
-        if not submodules:
-            submodules = ["Core"]
+        # Always include a 'Core' submodule to capture files directly inside src/
+        if "Core" not in submodules:
+            submodules.append("Core")
             
         for submodule in submodules:
             submodule_path = os.path.join(src_dir, submodule) if submodule != "Core" else src_dir
