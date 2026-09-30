@@ -8,20 +8,25 @@ namespace Ferrox\Database\Core;
 abstract class AbstractRepository implements RepositoryInterface
 {
     public function __construct(
-        protected UnitOfWorkInterface $uow
+        protected UnitOfWorkInterface $uow,
+        protected ?\Ferrox\Database\Core\Connection\ReplicaAwareManager $replicaManager = null
     ) {}
 
     /**
      * Finds an entity by its primary key.
-     * Integrates with Singleflight to prevent cache stampedes on hot records.
+     * Routes to a Replica by default, unless a write has forced Master.
      */
     abstract public function findById(string $id): ?array;
 
     /**
      * Standardized safe execution wrapped in a transaction.
+     * Automatically forces the Master connection to avoid replication lag during read-after-write.
      */
     protected function transaction(callable $operation): mixed
     {
+        if ($this->replicaManager) {
+            $this->replicaManager->forceMaster();
+        }
         return $this->uow->transactional($operation);
     }
     
