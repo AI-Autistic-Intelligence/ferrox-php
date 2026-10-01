@@ -1,57 +1,110 @@
-# Enterprise E-Shop CQRS Saga - Deep Kernel-to-Userland Handbook
+# Ferrox-PHP Enterprise E-Shop - The Definitive Handbook
 
-## 1. Executive Summary
+## 1. Executive Summary & Senior Engineering Vision
 
-This handbook documents the **Ferrox-PHP Enterprise E-Shop**, the definitive reference architecture for modern PHP.
+This handbook is the ultimate reference manual for the **Ferrox-PHP Enterprise E-Shop**.
 
-For decades, PHP was constrained by the "Shared-Nothing" architecture. On every HTTP request, the Web Server (Apache/FPM) boots the Zend Engine, compiles the code into OpCodes, executes, and then entirely destroys the memory space. This prevents connection pooling, stateful websockets, and in-memory event buses. 
+Historically, PHP has been pigeonholed into simple, synchronous web scripting, suffering from the "Shared-Nothing" architecture. As a Senior Engineer, I architected this application to hijack the traditional PHP lifecycle using **Swoole/FrankenPHP**. By doing so, we elevate PHP into a persistent, memory-resident state capable of interfacing directly with the OS kernel's `epoll`/`kqueue` loops.
 
-As a Senior Engineer, I architected this application to hijack the PHP lifecycle using **Swoole/FrankenPHP**. We elevate PHP into a persistent, resident-memory state, interfacing directly with the OS `epoll` / `kqueue` APIs. This E-Shop proves that PHP can handle distributed **Saga Patterns**, **CQRS**, and **ACID Transactions** with latency profiles rivaling Go or Node.js.
-
----
-
-## 2. Low-Level Architectural Blueprint
-
-### 2.1 The Resident Memory Model & Coroutines
-Instead of blocking OS threads while waiting for a database response, we utilize **Coroutines** (Fiber-based concurrency).
-- **The Kernel Interaction**: When the `WarehouseRepository` sends a query to PostgreSQL, the Swoole engine suspends the PHP Coroutine at the C level. It registers the socket file descriptor with the Linux `epoll` reactor and yields the CPU back to the event loop. The OS kernel handles the TCP wait. When data arrives, the kernel interrupts the epoll loop, which immediately resumes the exact memory state of the Coroutine.
-- **Memory Lifecycle**: Because the Zend Engine is not destroyed, global variables persist. We rigorously manage state using immutable DTOs and stateless Command Handlers to prevent memory leaks and cross-request data pollution.
-
-### 2.2 CQRS & CPU Branch Prediction Optimization
-We strictly separate Commands (Write operations) and Queries (Read operations).
-- **Mechanical Sympathy**: CPUs rely on Branch Prediction and L1 Instruction caches. Monolithic "Fat Controllers" have wildly divergent execution paths depending on `if (isPost)` or `if (isGet)`. By physically separating the classes into `SubmitOrderCommand` and `GetProductQuery`, the CPU executes highly predictable, linear instruction paths. This drastically reduces CPU pipeline flushes (branch mispredictions), resulting in raw execution speed at the hardware level.
-
-### 2.3 The Saga Pattern & Distributed Transactions
-In a microservice or multi-database environment, standard `BEGIN...COMMIT` SQL locks cannot span across network boundaries without Two-Phase Commit (2PC), which causes catastrophic deadlocks.
-- **Eventual Consistency**: We embrace the Saga pattern. If an order is created but the subsequent inventory decrement fails due to network partition, the Event Bus dispatches a compensating transaction (`OrderRefundedEvent`).
-- **The Outbox Pattern**: To ensure events are never lost if the PHP process crashes mid-flight, events are written atomically to an Outbox table in the same ACID transaction as the Order. A background kernel thread polls the Outbox and dispatches the events to the message broker, guaranteeing "At-Least-Once" delivery semantics.
+This application demonstrates distributed **CQRS**, **Saga Patterns**, **UnitOfWork ACID transactions**, and **Eventual Consistency**—proving that modern PHP can rival Go or Node.js in enterprise ecosystems.
 
 ---
 
-## 3. Programmer & DevOps Handbook
+## 2. The Domain Problem
 
-### 3.1 Advanced Deployment Configuration
-Do not run this application under standard PHP-FPM.
+In E-Commerce, placing an order requires orchestrating multiple bounded contexts: verifying stock across distributed warehouses, locking inventory, processing payments, and dispatching notifications. If one step fails after another has succeeded, the system will face data corruption (e.g., negative stock, phantom orders). Traditional relational locks block concurrent checkouts. We need a system that processes thousands of orders per second securely and reliably.
+
+---
+
+## 3. Low-Level Architecture & OS-Kernel Interactions
+
+### 3.1 The Resident Memory Model & Coroutines
+Under standard FPM, the Zend Engine complies, executes, and destroys memory on every request. 
+- **The Kernel Hook**: We bypass this entirely. Swoole keeps the PHP application resident in RAM. When a query is sent to PostgreSQL, Swoole suspends the PHP Coroutine at the C level, registers the file descriptor with the Linux `epoll` reactor, and yields the CPU.
+- **Zero Blocking**: The OS handles the TCP wait. When data returns, the `epoll` loop is interrupted, and the exact memory state of the Coroutine is resumed. We multiplex thousands of SQL connections without blocking OS threads.
+
+### 3.2 CQRS & CPU Branch Prediction Optimization
+We physically segregate Write operations (Commands) from Read operations (Queries).
+- **Mechanical Sympathy**: CPUs heavily rely on Branch Prediction and L1 Instruction caches. A monolithic "Fat Controller" (`if isGet else if isPost`) poisons the CPU cache. By separating `SubmitOrderCommand` and `GetProductQuery`, the CPU pipelines highly predictable, linear instruction paths, slashing branch misprediction penalties at the silicon level.
+
+---
+
+## 4. Application Architecture & Distributed Patterns
+
+### 4.1 Unit of Work & ACID Transactions
+The `UnitOfWorkInterface` wraps database boundaries. When the `WarehouseRepository` and `OrderRepository` mutate state during checkout, it happens atomically. An exception triggers a guaranteed rollback, preventing orphaned records.
+
+### 4.2 The Saga Pattern & Fallbacks
+When dealing with distributed databases or third-party APIs (Stripe), simple SQL transactions fail. 
+- **Compensating Transactions**: If stock is locked locally but the remote payment gateway fails, the Saga orchestrator dispatches a compensating transaction (e.g., `OrderRefundedEvent`) to revert the stock lock.
+
+### 4.3 The Outbox Pattern
+To prevent lost events during a kernel panic or power failure, domain events are saved to an `Outbox` table within the same DB transaction as the order. A background PHP thread polls this table and publishes to Kafka/RabbitMQ, ensuring **At-Least-Once** delivery.
+
+---
+
+## 5. Security & Validation
+
+### 5.1 DTO Validation via PHP 8 Attributes
+We utilize `#[ValidatedDto(strict: true)]` on payload objects like `SubmitOrderDto`.
+- **AST/Reflection Caching**: Because the application is resident in memory, we parse the reflection metadata once at boot time and cache it in a Hash Map. Validations run in `O(1)` time during HTTP requests, avoiding the massive overhead of runtime reflection.
+
+### 5.2 Protection against Memory Leaks
+Because the process never dies, developers must break circular references. A cyclical dependency (`Order` -> `User` -> `Order`) will never reduce its `zval` refcount to zero. 
+- **Manual GC Toggles**: We explicitly disable `gc_disable()` during request handling to prevent Stop-The-World sweeps, and call `gc_collect_cycles()` manually in background idle ticks.
+
+---
+
+## 6. Programmer's Guide (Developer Workflow)
+
+### 6.1 Environment Setup
 ```bash
-# Dockerfile configuration for Swoole/Alpine
-FROM phpswoole/swoole:8.3-alpine
+# 1. Install dependencies
+composer install
 
-# Tune the Swoole Event Loop
-# worker_num should equal CPU cores
-# max_coroutine determines the upper limit of simultaneous paused requests
-CMD ["php", "examples/eshop_app.php", "--worker_num=8", "--max_coroutine=100000"]
+# 2. Start the Swoole Server (Do not use built-in PHP server)
+php examples/eshop_app.php
 ```
 
-### 3.2 DTO Validation at the AST Level
-We utilize PHP 8 Attributes (`#[ValidatedDto(strict: true)]`). 
-- **Reflection Caching**: PHP Reflection API is notoriously slow because it reads class metadata. We parse these attributes during the application bootstrap phase, compiling the validation rules into a fast-lookup Hash Map in resident memory. When a request hits, the payload is validated in `O(1)` time against the pre-compiled schema.
+### 6.2 Adding a New CQRS Flow
+1. **Define the Command**: Create `CancelOrderCommand.php` containing the DTO.
+2. **Define the Handler**: Create `CancelOrderHandler.php`. Inject the `OrderRepository`. Return a Monadic `Ferrox\Utils\Types\Result`.
+3. **Register**: Bind them in the `CommandBus` during bootstrap.
 
-### 3.3 Memory Profiling & Garbage Collection
-Because the application runs indefinitely:
-- **Circular References**: Avoid them entirely. If an `Order` object references a `Product` and the `Product` references the `Order`, PHP's reference counter (`zval` refcount) will never hit zero. The Garbage Collector will have to run a cycle to clear it, which "stops the world."
-- **Manual GC Toggles**: We explicitly disable cyclic garbage collection (`gc_disable()`) during high-traffic spikes and run it manually (`gc_collect_cycles()`) during OS idle ticks to ensure predictable 99th-percentile latency.
+### 6.3 Using Monadic Error Handling
+Never throw Exceptions for business logic (e.g., "Out of Stock").
+```php
+// GOOD
+if ($stock < 0) return Result::err("Stock depleted");
+
+// IN CONTROLLER
+$result = $handler->handle($cmd);
+if ($result->isErr()) return $this->error($result->unwrapErr(), 400);
+```
 
 ---
 
-## 4. Senior Engineering Philosophy
-This architecture dismantles the preconceived notions of what PHP can achieve. By mastering the interaction between the Zend Engine's `zval` memory structures and the Linux kernel's non-blocking socket APIs, we transformed a traditionally synchronous scripting language into a formidable, persistent application server. We implemented enterprise standards—Sagas, CQRS, and Outboxes—not as theoretical design patterns, but as structural necessities for operating at scale.
+## 7. User & DevOps Handbook (Operations)
+
+### 7.1 Docker & Swoole Deployment
+```dockerfile
+FROM phpswoole/swoole:8.3-alpine
+COPY . /app
+WORKDIR /app
+# worker_num should precisely match the physical CPU cores
+# max_coroutine protects against OOM errors during traffic spikes
+CMD ["php", "examples/eshop_app.php", "--worker_num=8", "--max_coroutine=100000"]
+```
+- **FPM is Forbidden**: Do not deploy this behind PHP-FPM or Apache `mod_php`. It requires a CLI runtime to maintain the event loop.
+
+### 7.2 Native Metrics & Prometheus
+The application avoids external agents by natively tracking metrics.
+- Scrape `http://localhost:8000/metrics`.
+- Key metrics: `ferrox_warehouse_stock`, `ferrox_orders_total`, `ferrox_critical_anomalies_total`.
+- Setup Grafana alerts for `ferrox_critical_anomalies_total` to page DevOps immediately if a negative stock state occurs.
+
+---
+
+## 8. Senior Engineering Conclusion
+
+This architecture completely dismantles the preconceived notions of what PHP can achieve. By understanding the interaction between the Zend Engine's internal memory structures and the Linux kernel's non-blocking socket APIs, we transformed a legacy scripting paradigm into a formidable, persistent application server. Sagas, CQRS, and Outboxes are implemented here not as theoretical exercises, but as structural necessities for operating securely and reliably at a massive scale.
