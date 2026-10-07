@@ -1,0 +1,13 @@
+{
+    "name": "ferrox/ferrox-php-observability",
+    "description": "Ferrox PHP Observability module",
+    "type": "library",
+    "require": {
+        "php": ">=8.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ferrox\\Observability\\": "src/"
+        }
+    }
+}

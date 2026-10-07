@@ -1,0 +1,13 @@
+{
+    "name": "ferrox/ferrox-php-auth",
+    "description": "Ferrox PHP Auth module",
+    "type": "library",
+    "require": {
+        "php": ">=8.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ferrox\\Auth\\": "src/"
+        }
+    }
+}
