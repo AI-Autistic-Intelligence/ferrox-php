@@ -50,7 +50,7 @@ class SentinelThreatEngineMiddleware implements MiddlewareInterface
     private function flagThreat(string $reason): void
     {
         error_log("[SENTINEL WAF] BLOCK: " . $reason);
-        // In a real scenario, ban the IP dynamically at NGINX/iptables level here.
+        // Extension point: Forward telemetry to infrastructure layer (e.g. Fail2Ban / NGINX / Cloudflare) to drop subsequent requests.
         throw AppError::forbidden("Ferrox Sentinel WAF Blocked Request: Security violation detected.");
     }
 

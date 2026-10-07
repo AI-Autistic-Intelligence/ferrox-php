@@ -20,7 +20,7 @@ Below is the highly detailed documentation extracted and inferred directly from 
 The `Scheduler` is responsible for enterprise-grade execution of operations within `ferrox-php-scheduler/src/Scheduler.php`.
 
 - **`runDueTasks() : void`**
-  - @var Task[] */ private array $tasks = []; public function schedule(string $cronExpression, callable $callback): void { $this-&gt;tasks[] = new Task($cronExpression, $callback); } /** Called every minute by the server (e.g. Swoole Timer or Crontab)
+  - @var Task[] */ private array $tasks = []; public function schedule(string $cronExpression, callable $callback): void \{ $this-&gt;tasks[] = new Task($cronExpression, $callback); \} /** Called every minute by the server (e.g. Swoole Timer or Crontab)
 
 ### Path: `ferrox-php-scheduler/src/Task.php`
 
