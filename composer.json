@@ -5,19 +5,25 @@
     "type": "project",
     "require": {
         "php": ">=8.3",
-        "ferrox/ferrox-php-core": "^1.0",
-        "ferrox/ferrox-php-validation": "^1.0",
-        "ferrox/ferrox-php-security": "^1.0",
-        "ferrox/ferrox-php-cqrs": "^1.0",
-        "ferrox/ferrox-php-data": "^1.0",
-        "ferrox/ferrox-php-utils": "^1.0",
-        "ferrox/ferrox-php-crud-gen": "^1.0",
-        "ferrox/ferrox-php-events": "^1.0",
-        "ferrox/ferrox-php-config": "^1.0",
-        "ferrox/ferrox-php-database-core": "^1.0",
-        "ferrox/ferrox-php-rate-limiter": "^1.0"
+        "ferrox/ferrox-php-core": "*@dev",
+        "ferrox/ferrox-php-validation": "*@dev",
+        "ferrox/ferrox-php-security": "*@dev",
+        "ferrox/ferrox-php-cqrs": "*@dev",
+        "ferrox/ferrox-php-data": "*@dev",
+        "ferrox/ferrox-php-utils": "*@dev",
+        "ferrox/ferrox-php-crud-gen": "*@dev",
+        "ferrox/ferrox-php-events": "*@dev",
+        "ferrox/ferrox-php-config": "*@dev",
+        "ferrox/ferrox-php-database-core": "*@dev",
+        "ferrox/ferrox-php-rate-limiter": "*@dev"
     },
-    "minimum-stability": "stable",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/*"
+        }
+    ],
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "require-dev": {
         "phpunit/phpunit": "^10.0"
